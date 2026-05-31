@@ -40,7 +40,7 @@ export function PaymentModal({ open, onOpenChange, planName, amount }: PaymentMo
           const upiUri = `upi://pay?pa=${UPI_ID}&pn=${encodeURIComponent(
               PAYEE_NAME,
                 )}&am=${inrAmount}&cu=INR&tn=${encodeURIComponent(`StreakBuddy ${planName}`)}`
-                
+     
 
   const whatsappLink = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
     `Hi! I've paid ${amount} for the StreakBuddy ${planName} plan. Here is my payment confirmation:`,
