@@ -16,7 +16,7 @@ import {
  * Payment details — swap these with your own.
  * UPI_ID is where payments are collected. WHATSAPP_NUMBER is the support line.
  */
-const UPI_ID = 'streakbuddy@upi'
+const UPI_ID = '8967928897@kotakbank'
 const PAYEE_NAME = 'StreakBuddy'
 const WHATSAPP_NUMBER = '918967928897' // +91 8967928897
 
