@@ -33,11 +33,14 @@ export function PaymentModal({ open, onOpenChange, planName, amount }: PaymentMo
   const [method, setMethod] = useState<PaymentMethod>('upi')
   const [copied, setCopied] = useState(false)
 
-  // Numeric amount for the UPI deep link (strip the currency symbol).
-  const numericAmount = amount.replace(/[^0-9.]/g, '')
-  const upiUri = `upi://pay?pa=${UPI_ID}&pn=${encodeURIComponent(
-    PAYEE_NAME,
-  )}&am=${numericAmount}&cu=INR&tn=${encodeURIComponent(`StreakBuddy ${planName}`)}`
+  // Convert Dollar to Indian Rupees (1 USD = 83 INR)
+    const usdAmount = parseFloat(amount.replace(/[^0-9.]/g, ''))
+      const inrAmount = (usdAmount * 83).toFixed(2)
+        
+          const upiUri = `upi://pay?pa=${UPI_ID}&pn=${encodeURIComponent(
+              PAYEE_NAME,
+                )}&am=${inrAmount}&cu=INR&tn=${encodeURIComponent(`StreakBuddy ${planName}`)}`
+                
 
   const whatsappLink = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
     `Hi! I've paid ${amount} for the StreakBuddy ${planName} plan. Here is my payment confirmation:`,
