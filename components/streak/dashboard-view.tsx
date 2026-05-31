@@ -1,17 +1,31 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { Check, Flame } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { useStreak } from './streak-store'
+import { ProgressRing } from './progress-ring'
+import { CelebrationDialog } from './celebration-dialog'
+import { celebrateTask, celebrateGoal } from '@/lib/celebrate'
 
 export function DashboardView() {
-  const { habits, toggleHabit, completedCount, totalCount, bestStreak } = useStreak()
+  const { habits, toggleHabit, completedCount, totalCount, bestStreak, allComplete } = useStreak()
   const progress = Math.round((completedCount / totalCount) * 100)
+  const [celebrateOpen, setCelebrateOpen] = useState(false)
+
+  // Fire the full-goal celebration once when every habit becomes complete.
+  useEffect(() => {
+    if (allComplete && totalCount > 0) {
+      celebrateGoal()
+      setCelebrateOpen(true)
+    }
+  }, [allComplete, totalCount])
 
   const handleToggle = (id: string, name: string) => {
     const becameComplete = toggleHabit(id)
     if (becameComplete) {
+      celebrateTask()
       toast.success('Congratulations!', {
         description: `You completed "${name}". Keep the streak alive!`,
         duration: 2500,
@@ -41,20 +55,24 @@ export function DashboardView() {
         </div>
       </header>
 
-      {/* Daily progress card */}
-      <section className="rounded-3xl bg-brand-gradient p-6 text-primary-foreground shadow-lg shadow-primary/20">
-        <p className="text-sm font-medium opacity-90">Today&apos;s progress</p>
-        <p className="mt-1 text-3xl font-bold tracking-tight">
-          {completedCount}
-          <span className="text-xl font-medium opacity-80">/{totalCount} done</span>
-        </p>
-        <div className="mt-4 h-2.5 w-full overflow-hidden rounded-full bg-white/25">
-          <div
-            className="h-full rounded-full bg-white transition-all duration-500"
-            style={{ width: `${progress}%` }}
-          />
+      {/* Daily progress card with live circular ring */}
+      <section className="flex items-center gap-5 rounded-3xl bg-brand-gradient p-6 text-primary-foreground shadow-lg shadow-primary/20">
+        <ProgressRing progress={progress} size={104} strokeWidth={9}>
+          <span className="text-2xl font-bold leading-none">{progress}%</span>
+          <span className="mt-1 text-[10px] font-medium uppercase tracking-wide opacity-80">
+            Today
+          </span>
+        </ProgressRing>
+        <div className="flex-1">
+          <p className="text-sm font-medium opacity-90">Daily progress</p>
+          <p className="mt-1 text-3xl font-bold tracking-tight">
+            {completedCount}
+            <span className="text-xl font-medium opacity-80">/{totalCount}</span>
+          </p>
+          <p className="mt-1 text-xs font-medium opacity-90">
+            {allComplete ? 'All done — amazing!' : "Keep going, you've got this"}
+          </p>
         </div>
-        <p className="mt-2 text-xs font-medium opacity-90">{progress}% complete — you&apos;ve got this</p>
       </section>
 
       {/* Habit list */}
@@ -101,6 +119,8 @@ export function DashboardView() {
           </button>
         ))}
       </section>
+
+      <CelebrationDialog open={celebrateOpen} onOpenChange={setCelebrateOpen} />
     </div>
   )
 }

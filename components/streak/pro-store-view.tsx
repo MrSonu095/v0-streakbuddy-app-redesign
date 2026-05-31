@@ -3,13 +3,7 @@
 import { useState } from 'react'
 import { Check, Crown, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
-
-/**
- * Confirm Payment redirects here. Replace this with your own WhatsApp link.
- * Format: https://wa.me/<countrycode+number>?text=<url-encoded-message>
- */
-const WHATSAPP_CHECKOUT_LINK =
-  'https://wa.me/1234567890?text=I%20want%20to%20upgrade%20to%20StreakBuddy%20Pro'
+import { PaymentModal } from './payment-modal'
 
 type Plan = {
   id: string
@@ -20,9 +14,9 @@ type Plan = {
 }
 
 const PLANS: Plan[] = [
-  { id: 'monthly', name: 'Monthly', price: '$4.99', period: '/ month' },
-  { id: 'yearly', name: 'Yearly', price: '$39.99', period: '/ year', highlight: true },
-  { id: 'lifetime', name: 'Lifetime', price: '$89.99', period: 'one-time' },
+  { id: 'monthly', name: 'Monthly', price: '$2.49', period: '/ month' },
+  { id: 'yearly', name: 'Yearly', price: '$19.99', period: '/ year', highlight: true },
+  { id: 'lifetime', name: 'Lifetime', price: '$49.99', period: 'one-time' },
 ]
 
 const FEATURES = [
@@ -35,10 +29,9 @@ const FEATURES = [
 
 export function ProStoreView() {
   const [selected, setSelected] = useState('yearly')
+  const [payOpen, setPayOpen] = useState(false)
 
-  const handleConfirmPayment = () => {
-    window.open(WHATSAPP_CHECKOUT_LINK, '_blank', 'noopener,noreferrer')
-  }
+  const selectedPlan = PLANS.find((p) => p.id === selected) ?? PLANS[0]
 
   return (
     <div className="flex flex-col gap-6 px-5 pb-28 pt-6">
@@ -120,16 +113,23 @@ export function ProStoreView() {
         </ul>
       </section>
 
-      {/* Confirm Payment -> WhatsApp */}
+      {/* Confirm Payment -> opens UPI / QR payment modal */}
       <button
-        onClick={handleConfirmPayment}
+        onClick={() => setPayOpen(true)}
         className="w-full rounded-2xl bg-brand-gradient py-4 text-base font-semibold text-primary-foreground shadow-lg shadow-primary/25 transition-transform active:scale-[0.99]"
       >
-        Confirm Payment
+        Confirm Payment · {selectedPlan.price}
       </button>
       <p className="text-center text-xs text-muted-foreground">
-        You&apos;ll be redirected to WhatsApp to complete your purchase.
+        Pay securely via UPI or QR code, then confirm on WhatsApp.
       </p>
+
+      <PaymentModal
+        open={payOpen}
+        onOpenChange={setPayOpen}
+        planName={selectedPlan.name}
+        amount={selectedPlan.price}
+      />
     </div>
   )
 }

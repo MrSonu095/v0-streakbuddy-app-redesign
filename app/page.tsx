@@ -7,9 +7,15 @@ import { DashboardView } from '@/components/streak/dashboard-view'
 import { StatsView } from '@/components/streak/stats-view'
 import { ProStoreView } from '@/components/streak/pro-store-view'
 import { ProfileView } from '@/components/streak/profile-view'
+import { AuthScreen } from '@/components/streak/auth-screen'
 
 export default function Page() {
   const [tab, setTab] = useState<TabId>('dashboard')
+  const [authed, setAuthed] = useState(false)
+
+  if (!authed) {
+    return <AuthScreen onAuthenticated={() => setAuthed(true)} />
+  }
 
   return (
     <StreakProvider>
