@@ -1,6 +1,14 @@
 'use client'
 
-import { createContext, useContext, useMemo, useState, type ReactNode } from 'react'
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
 
 export type Habit = {
   id: string
@@ -16,6 +24,7 @@ type StreakContextValue = {
   completedCount: number
   totalCount: number
   bestStreak: number
+  allComplete: boolean
   weeklyCompletion: { day: string; value: number }[]
 }
 
@@ -29,8 +38,58 @@ const INITIAL_HABITS: Habit[] = [
   { id: 'journal', name: 'Write in journal', detail: 'Reflect on the day', streak: 3, done: false },
 ]
 
+function todayKey() {
+  return new Date().toDateString()
+}
+
+function msUntilMidnight() {
+  const now = new Date()
+  const midnight = new Date(now)
+  midnight.setHours(24, 0, 0, 0)
+  return midnight.getTime() - now.getTime()
+}
+
 export function StreakProvider({ children }: { children: ReactNode }) {
   const [habits, setHabits] = useState<Habit[]>(INITIAL_HABITS)
+  const lastReset = useRef<string>(todayKey())
+
+  // Reset all daily tasks/goals so the user starts fresh for the new day.
+  const resetForNewDay = () => {
+    setHabits((prev) => prev.map((h) => ({ ...h, done: false })))
+    lastReset.current = todayKey()
+  }
+
+  // Auto-reset exactly at midnight (12:00 AM), and also catch up if the app
+  // was left open / reopened across a day boundary.
+  useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout>
+
+    const scheduleMidnight = () => {
+      timeoutId = setTimeout(() => {
+        resetForNewDay()
+        scheduleMidnight()
+      }, msUntilMidnight())
+    }
+
+    const checkMissedReset = () => {
+      if (lastReset.current !== todayKey()) {
+        resetForNewDay()
+      }
+    }
+
+    scheduleMidnight()
+
+    // Re-check when the tab regains focus (timers throttle in background tabs).
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') checkMissedReset()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+
+    return () => {
+      clearTimeout(timeoutId)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [])
 
   const toggleHabit = (id: string) => {
     let becameComplete = false
@@ -67,6 +126,7 @@ export function StreakProvider({ children }: { children: ReactNode }) {
       completedCount,
       totalCount: habits.length,
       bestStreak,
+      allComplete: completedCount === habits.length,
       weeklyCompletion,
     }
   }, [habits])
