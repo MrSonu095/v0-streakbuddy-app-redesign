@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Bell, ChevronRight, Crown, HelpCircle, LogOut, Settings, Shield, Camera, X } from 'lucide-react'
 import { useStreak } from './streak-store'
 import { cn } from '@/lib/utils'
@@ -9,11 +9,15 @@ export function ProfileView() {
   const { habits } = useStreak()
   const activeHabitsCount = habits.length
 
-  // Profile & Notification states
+  // Profile, Image & Notification states
   const [profile, setProfile] = useState({
     name: 'Alex Morgan',
     email: 'alex.morgan@email.com',
   })
+  
+  // Default image state
+  const [profileImage, setProfileImage] = useState("https://i.pravatar.cc/150?img=11")
+  const fileInputRef = useRef<HTMLInputElement>(null)
   
   const [notifs, setNotifs] = useState({
     daily: true,
@@ -29,6 +33,7 @@ export function ProfileView() {
   useEffect(() => {
     const savedProfile = localStorage.getItem('streakbuddy_profile')
     const savedNotifs = localStorage.getItem('streakbuddy_notifs')
+    const savedImage = localStorage.getItem('streakbuddy_profile_image')
     
     if (savedProfile) {
       const parsed = JSON.parse(savedProfile)
@@ -38,6 +43,9 @@ export function ProfileView() {
     }
     if (savedNotifs) {
       setNotifs(JSON.parse(savedNotifs))
+    }
+    if (savedImage) {
+      setProfileImage(savedImage)
     }
   }, [])
 
@@ -52,6 +60,20 @@ export function ProfileView() {
     const updated = { ...notifs, [key]: !notifs[key] }
     setNotifs(updated)
     localStorage.setItem('streakbuddy_notifs', JSON.stringify(updated))
+  }
+
+  // Real Image Upload Logic
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        const base64String = reader.result as string
+        setProfileImage(base64String) // Update UI
+        localStorage.setItem('streakbuddy_profile_image', base64String) // Save to memory
+      }
+      reader.readAsDataURL(file)
+    }
   }
 
   const MENU = [
@@ -71,9 +93,23 @@ export function ProfileView() {
       <div className="rounded-3xl border border-border bg-card p-6 shadow-sm flex flex-col items-center text-center">
         <div className="relative mb-4">
           <div className="size-24 overflow-hidden rounded-full border-4 border-background bg-secondary shadow-md">
-            <img src="https://i.pravatar.cc/150?img=11" alt="Profile" className="size-full object-cover" />
+            <img src={profileImage} alt="Profile" className="size-full object-cover" />
           </div>
-          <button className="absolute bottom-0 right-0 flex size-8 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md transition-transform active:scale-95">
+          
+          {/* Hidden File Input */}
+          <input 
+            type="file" 
+            accept="image/*" 
+            ref={fileInputRef} 
+            onChange={handleImageChange} 
+            className="hidden" 
+          />
+          
+          {/* Working Camera Button */}
+          <button 
+            onClick={() => fileInputRef.current?.click()} 
+            className="absolute bottom-0 right-0 flex size-8 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md transition-transform active:scale-95"
+          >
             <Camera className="size-4" />
           </button>
         </div>
