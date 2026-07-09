@@ -3,11 +3,13 @@
 import { useState, useEffect, useRef } from 'react'
 import { Bell, ChevronRight, Crown, HelpCircle, LogOut, Settings, Shield, Camera, X } from 'lucide-react'
 import { useStreak } from './streak-store'
+import { PaymentModal } from './payment-modal'
 import { cn } from '@/lib/utils'
 
 export function ProfileView() {
   const { habits } = useStreak()
   const activeHabitsCount = habits.length
+  const [paymentOpen, setPaymentOpen] = useState(false)
 
   // Profile, Image & Notification states
   const [profile, setProfile] = useState({
@@ -134,7 +136,7 @@ export function ProfileView() {
       </div>
 
       {/* Pro Banner */}
-      <button className="flex items-center justify-between rounded-2xl bg-gradient-to-r from-blue-500 to-purple-600 p-5 text-white shadow-lg shadow-purple-500/20 transition-transform active:scale-95">
+      <button onClick={() => setPaymentOpen(true)} className="flex items-center justify-between rounded-2xl bg-gradient-to-r from-blue-500 to-purple-600 p-5 text-white shadow-lg shadow-purple-500/20 transition-transform active:scale-95">
         <div className="flex items-center gap-4">
           <div className="flex size-10 items-center justify-center rounded-full bg-white/20">
             <Crown className="size-5" />
@@ -265,6 +267,13 @@ export function ProfileView() {
           </div>
         </div>
       )}
+
+      <PaymentModal
+        open={paymentOpen}
+        onOpenChange={setPaymentOpen}
+        planName="StreakBuddy Pro"
+        amount="$2.49"
+      />
     </div>
   )
 }
