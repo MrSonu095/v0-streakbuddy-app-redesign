@@ -1,6 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+'use client'
+
+import { useState, useEffect } from 'react'
 import { StreakProvider } from '@/components/streak/streak-store'
 import { BottomNav, type TabId } from '@/components/streak/bottom-nav'
 import { DashboardView } from '@/components/streak/dashboard-view'
@@ -12,9 +14,34 @@ import { AuthScreen } from '@/components/streak/auth-screen'
 export default function Page() {
   const [tab, setTab] = useState<TabId>('dashboard')
   const [authed, setAuthed] = useState(false)
+  const [isLoaded, setIsLoaded] = useState(false)
+
+  // Persist auth state across page reloads
+  useEffect(() => {
+    const savedAuth = localStorage.getItem('streakbuddy_authed')
+    if (savedAuth === 'true') {
+      setAuthed(true)
+    }
+    setIsLoaded(true)
+  }, [])
+
+  // Save auth state whenever it changes
+  useEffect(() => {
+    if (isLoaded) {
+      localStorage.setItem('streakbuddy_authed', authed ? 'true' : 'false')
+    }
+  }, [authed, isLoaded])
+
+  const handleAuthenticated = () => {
+    setAuthed(true)
+  }
+
+  if (!isLoaded) {
+    return null
+  }
 
   if (!authed) {
-    return <AuthScreen onAuthenticated={() => setAuthed(true)} />
+    return <AuthScreen onAuthenticated={handleAuthenticated} />
   }
 
   return (
@@ -23,7 +50,7 @@ export default function Page() {
         {tab === 'dashboard' && <DashboardView />}
         {tab === 'stats' && <StatsView />}
         {tab === 'store' && <ProStoreView />}
-        {tab === 'profile' && <ProfileView />}
+        {tab === 'profile' && <ProfileView onNavigate={setTab} />}
         <BottomNav active={tab} onChange={setTab} />
       </main>
     </StreakProvider>
