@@ -33,65 +33,103 @@ const FEATURES = [
   'Priority support',
 ]
 
+const DEFAULT_PROFILE = {
+  name: 'Alex Morgan',
+  email: 'alex.morgan@email.com',
+}
+
+const DEFAULT_NOTIFS = {
+  daily: true,
+  streak: true,
+  promos: false
+}
+
+const DEFAULT_IMAGE = "https://i.pravatar.cc/150?img=11"
+
 export function ProfileView({ onNavigate }: ProfileViewProps) {
   const { habits } = useStreak()
   const activeHabitsCount = habits.length
 
-  // Profile, Image & Notification states
-  const [profile, setProfile] = useState({
-    name: 'Alex Morgan',
-    email: 'alex.morgan@email.com',
-  })
-  
-  // Default image state
-  const [profileImage, setProfileImage] = useState("https://i.pravatar.cc/150?img=11")
+  // Initialize state with localStorage values
+  const [profile, setProfile] = useState(DEFAULT_PROFILE)
+  const [profileImage, setProfileImage] = useState(DEFAULT_IMAGE)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  
-  const [notifs, setNotifs] = useState({
-    daily: true,
-    streak: true,
-    promos: false
-  })
-  
+  const [notifs, setNotifs] = useState(DEFAULT_NOTIFS)
   const [activeModal, setActiveModal] = useState<string | null>(null)
-  const [editName, setEditName] = useState(profile.name)
-  const [editEmail, setEditEmail] = useState(profile.email)
+  const [editName, setEditName] = useState(DEFAULT_PROFILE.name)
+  const [editEmail, setEditEmail] = useState(DEFAULT_PROFILE.email)
   const [premiumOpen, setPremiumOpen] = useState(false)
   const [selectedPlan, setSelectedPlan] = useState('yearly')
   const [paymentOpen, setPaymentOpen] = useState(false)
+  const [isLoaded, setIsLoaded] = useState(false)
 
-  // Load data from local storage
+  // Load all data from localStorage on mount
   useEffect(() => {
     const savedProfile = localStorage.getItem('streakbuddy_profile')
     const savedNotifs = localStorage.getItem('streakbuddy_notifs')
     const savedImage = localStorage.getItem('streakbuddy_profile_image')
     
+    let loadedProfile = DEFAULT_PROFILE
+    let loadedNotifs = DEFAULT_NOTIFS
+    let loadedImage = DEFAULT_IMAGE
+    
     if (savedProfile) {
-      const parsed = JSON.parse(savedProfile)
-      setProfile(parsed)
-      setEditName(parsed.name)
-      setEditEmail(parsed.email)
+      try {
+        loadedProfile = JSON.parse(savedProfile)
+      } catch (e) {
+        console.error('[v0] Failed to parse saved profile:', e)
+      }
     }
     if (savedNotifs) {
-      setNotifs(JSON.parse(savedNotifs))
+      try {
+        loadedNotifs = JSON.parse(savedNotifs)
+      } catch (e) {
+        console.error('[v0] Failed to parse saved notifs:', e)
+      }
     }
     if (savedImage) {
-      setProfileImage(savedImage)
+      loadedImage = savedImage
     }
+    
+    setProfile(loadedProfile)
+    setEditName(loadedProfile.name)
+    setEditEmail(loadedProfile.email)
+    setNotifs(loadedNotifs)
+    setProfileImage(loadedImage)
+    setIsLoaded(true)
   }, [])
+
+  // Auto-save profile to localStorage whenever it changes
+  useEffect(() => {
+    if (isLoaded) {
+      localStorage.setItem('streakbuddy_profile', JSON.stringify(profile))
+    }
+  }, [profile, isLoaded])
+
+  // Auto-save image to localStorage whenever it changes
+  useEffect(() => {
+    if (isLoaded && profileImage !== DEFAULT_IMAGE) {
+      localStorage.setItem('streakbuddy_profile_image', profileImage)
+    }
+  }, [profileImage, isLoaded])
 
   const handleSaveProfile = () => {
     const newProfile = { name: editName, email: editEmail }
-    setProfile(newProfile)
-    localStorage.setItem('streakbuddy_profile', JSON.stringify(newProfile))
+    setProfile(newProfile) // This will trigger the auto-save useEffect
     setActiveModal(null)
   }
 
   const toggleNotif = (key: keyof typeof notifs) => {
     const updated = { ...notifs, [key]: !notifs[key] }
-    setNotifs(updated)
-    localStorage.setItem('streakbuddy_notifs', JSON.stringify(updated))
+    setNotifs(updated) // Auto-save via useEffect will handle localStorage
   }
+
+  // Auto-save notifications to localStorage whenever they change
+  useEffect(() => {
+    if (isLoaded) {
+      localStorage.setItem('streakbuddy_notifs', JSON.stringify(notifs))
+    }
+  }, [notifs, isLoaded])
 
   // Real Image Upload Logic
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {

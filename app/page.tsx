@@ -1,7 +1,5 @@
 'use client'
 
-'use client'
-
 import { useState, useEffect } from 'react'
 import { StreakProvider } from '@/components/streak/streak-store'
 import { BottomNav, type TabId } from '@/components/streak/bottom-nav'

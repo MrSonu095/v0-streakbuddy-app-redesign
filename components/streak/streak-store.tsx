@@ -56,9 +56,14 @@ export function StreakProvider({ children }: { children: ReactNode }) {
 
     // Load saved habits if they exist and match the current 8-task structure
     if (savedHabits) {
-      const parsed = JSON.parse(savedHabits)
-      if (parsed.length === 8) {
-        currentHabits = parsed
+      try {
+        const parsed = JSON.parse(savedHabits)
+        if (Array.isArray(parsed) && parsed.length === 8) {
+          currentHabits = parsed
+          console.log('[v0] Loaded habits from localStorage')
+        }
+      } catch (e) {
+        console.error('[v0] Failed to parse saved habits:', e)
       }
     }
 
@@ -66,6 +71,7 @@ export function StreakProvider({ children }: { children: ReactNode }) {
     if (lastDate !== today) {
       currentHabits = currentHabits.map(h => ({ ...h, current: 0 }))
       localStorage.setItem('streakbuddy_last_date', today)
+      console.log('[v0] Reset tasks for new day:', today)
     }
 
     setHabits(currentHabits)
