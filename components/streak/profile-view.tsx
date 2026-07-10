@@ -1,14 +1,37 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Bell, ChevronRight, Crown, HelpCircle, LogOut, Settings, Shield, Camera, X } from 'lucide-react'
+import { Bell, ChevronRight, Crown, HelpCircle, LogOut, Settings, Shield, Camera, X, Check, Sparkles } from 'lucide-react'
 import { useStreak } from './streak-store'
+import { PaymentModal } from './payment-modal'
 import { cn } from '@/lib/utils'
 import type { TabId } from './bottom-nav'
 
 interface ProfileViewProps {
   onNavigate?: (tab: TabId) => void
 }
+
+type Plan = {
+  id: string
+  name: string
+  price: string
+  period: string
+  highlight?: boolean
+}
+
+const PLANS: Plan[] = [
+  { id: 'monthly', name: 'Monthly', price: '$2.49', period: '/ month' },
+  { id: 'yearly', name: 'Yearly', price: '$19.99', period: '/ year', highlight: true },
+  { id: 'lifetime', name: 'Lifetime', price: '$49.99', period: 'one-time' },
+]
+
+const FEATURES = [
+  'Unlimited habits & streaks',
+  'Advanced stats & insights',
+  'Custom reminders',
+  'Premium themes & icons',
+  'Priority support',
+]
 
 export function ProfileView({ onNavigate }: ProfileViewProps) {
   const { habits } = useStreak()
@@ -33,6 +56,9 @@ export function ProfileView({ onNavigate }: ProfileViewProps) {
   const [activeModal, setActiveModal] = useState<string | null>(null)
   const [editName, setEditName] = useState(profile.name)
   const [editEmail, setEditEmail] = useState(profile.email)
+  const [premiumOpen, setPremiumOpen] = useState(false)
+  const [selectedPlan, setSelectedPlan] = useState('yearly')
+  const [paymentOpen, setPaymentOpen] = useState(false)
 
   // Load data from local storage
   useEffect(() => {
@@ -139,7 +165,7 @@ export function ProfileView({ onNavigate }: ProfileViewProps) {
       </div>
 
       {/* Pro Banner */}
-      <button onClick={() => onNavigate?.('store')} className="flex items-center justify-between rounded-2xl bg-gradient-to-r from-blue-500 to-purple-600 p-5 text-white shadow-lg shadow-purple-500/20 transition-transform active:scale-95">
+      <button onClick={() => setPremiumOpen(true)} className="flex items-center justify-between rounded-2xl bg-gradient-to-r from-blue-500 to-purple-600 p-5 text-white shadow-lg shadow-purple-500/20 transition-transform active:scale-95">
         <div className="flex items-center gap-4">
           <div className="flex size-10 items-center justify-center rounded-full bg-white/20">
             <Crown className="size-5" />
@@ -270,6 +296,111 @@ export function ProfileView({ onNavigate }: ProfileViewProps) {
           </div>
         </div>
       )}
+
+      {/* Premium Subscription Modal */}
+      {premiumOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm sm:items-center">
+          <div className="w-full max-w-md animate-in slide-in-from-bottom-full rounded-t-3xl bg-background p-6 shadow-2xl sm:rounded-3xl sm:slide-in-from-bottom-0 sm:zoom-in-95">
+            {/* Header */}
+            <div className="mb-6 flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold text-foreground">Upgrade to Pro</h2>
+                <p className="mt-1 text-sm text-muted-foreground">Unlock premium features</p>
+              </div>
+              <button onClick={() => setPremiumOpen(false)} className="rounded-full bg-secondary p-2 text-muted-foreground hover:bg-secondary/70">
+                <X className="size-5" />
+              </button>
+            </div>
+
+            {/* Plans */}
+            <div className="mb-6 flex flex-col gap-3">
+              {PLANS.map((plan) => {
+                const isActive = selectedPlan === plan.id
+                return (
+                  <button
+                    key={plan.id}
+                    onClick={() => setSelectedPlan(plan.id)}
+                    className={cn(
+                      'flex items-center justify-between rounded-2xl border p-4 text-left transition-all',
+                      isActive
+                        ? 'border-transparent bg-brand-gradient text-primary-foreground shadow-lg shadow-primary/20'
+                        : 'border-border bg-card text-foreground shadow-sm hover:bg-secondary/60',
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span
+                        className={cn(
+                          'flex size-5 items-center justify-center rounded-full border-2',
+                          isActive ? 'border-white bg-white/20' : 'border-border',
+                        )}
+                      >
+                        {isActive && <Check className="size-3" strokeWidth={3} />}
+                      </span>
+                      <span className="flex items-center gap-2 text-sm font-semibold">
+                        {plan.name}
+                        {plan.highlight && (
+                          <span
+                            className={cn(
+                              'rounded-full px-2 py-0.5 text-[10px] font-bold',
+                              isActive ? 'bg-white/25 text-primary-foreground' : 'bg-secondary text-primary',
+                            )}
+                          >
+                            BEST VALUE
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-base font-bold">{plan.price}</p>
+                      <p className={cn('text-xs', isActive ? 'opacity-90' : 'text-muted-foreground')}>
+                        {plan.period}
+                      </p>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Features */}
+            <div className="mb-6 rounded-2xl border border-border bg-card/50 p-4">
+              <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                <Sparkles className="size-4 text-primary" />
+                What&apos;s included
+              </h3>
+              <ul className="mt-3 flex flex-col gap-2">
+                {FEATURES.map((feature) => (
+                  <li key={feature} className="flex items-center gap-2 text-xs text-foreground">
+                    <span className="flex size-4 items-center justify-center rounded-full bg-brand-gradient text-primary-foreground">
+                      <Check className="size-2" strokeWidth={3} />
+                    </span>
+                    {feature}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Subscribe Button */}
+            <button
+              onClick={() => setPaymentOpen(true)}
+              className="w-full rounded-2xl bg-brand-gradient py-3.5 text-center text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/25 transition-transform active:scale-[0.99] mb-3"
+            >
+              Subscribe · {PLANS.find(p => p.id === selectedPlan)?.price}
+            </button>
+
+            <p className="text-center text-xs text-muted-foreground">
+              Cancel anytime. Secure payment via UPI or QR code.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Payment Modal */}
+      <PaymentModal
+        open={paymentOpen}
+        onOpenChange={setPaymentOpen}
+        planName={PLANS.find(p => p.id === selectedPlan)?.name || 'Pro'}
+        amount={PLANS.find(p => p.id === selectedPlan)?.price || '$2.49'}
+      />
     </div>
   )
 }
