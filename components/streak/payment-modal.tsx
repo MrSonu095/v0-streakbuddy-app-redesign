@@ -49,11 +49,32 @@ export function PaymentModal({ open, onOpenChange, planName, amount }: PaymentMo
 
   const copyUpi = async () => {
     try {
-      await navigator.clipboard.writeText(UPI_ID)
+      // Try modern Clipboard API first
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(UPI_ID)
+      } else {
+        // Fallback for iframe environments: use document.execCommand
+        const textArea = document.createElement('textarea')
+        textArea.value = UPI_ID
+        textArea.style.position = 'fixed'
+        textArea.style.left = '-999999px'
+        textArea.style.top = '-999999px'
+        document.body.appendChild(textArea)
+        textArea.focus()
+        textArea.select()
+        const success = document.execCommand('copy')
+        document.body.removeChild(textArea)
+        
+        if (!success) {
+          throw new Error('Fallback copy failed')
+        }
+      }
+      
       setCopied(true)
       toast.success('Copied to clipboard!', { duration: 1500 })
       setTimeout(() => setCopied(false), 1500)
-    } catch {
+    } catch (error) {
+      console.error('[v0] Copy failed:', error)
       toast.error('Failed to copy')
     }
   }
