@@ -4,7 +4,7 @@ import { Flame, Target, TrendingUp, CalendarCheck } from 'lucide-react'
 import { useStreak } from './streak-store'
 
 export function StatsView() {
-  const { habits, completedCount, totalCount, bestStreak } = useStreak()
+  const { habits, completedCount, totalCount, bestStreak, weeklyHistory } = useStreak()
   
   const activeHabitsCount = habits.length
   const currentDayProgress = totalCount > 0 ? Math.round((completedCount/totalCount)*100) : 0
@@ -18,24 +18,22 @@ export function StatsView() {
 
   const currentDayIndex = getDayOfWeek()
   
-  // Weekly Chart Data - dynamically highlight current day
-  const weeklyCompletion = [
-    { label: 'Mon', value: 0, isToday: currentDayIndex === 0 },
-    { label: 'Tue', value: 0, isToday: currentDayIndex === 1 },
-    { label: 'Wed', value: 0, isToday: currentDayIndex === 2 },
-    { label: 'Thu', value: 0, isToday: currentDayIndex === 3 },
-    { label: 'Fri', value: 0, isToday: currentDayIndex === 4 },
-    { label: 'Sat', value: 0, isToday: currentDayIndex === 5 },
-    { label: 'Sun', value: 0, isToday: currentDayIndex === 6 },
-  ]
+  // Days of week labels
+  const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
   
-  // Update today's value to show live progress
-  if (currentDayIndex >= 0 && currentDayIndex < weeklyCompletion.length) {
-    weeklyCompletion[currentDayIndex].value = currentDayProgress
-  }
+  // Build weekly chart data from actual history
+  const weeklyCompletion = weeklyHistory.map((entry, index) => {
+    const percent = entry.totalCount > 0 ? Math.round((entry.completedCount / entry.totalCount) * 100) : 0
+    return {
+      label: dayLabels[index],
+      value: percent,
+      isToday: index === weeklyHistory.length - 1, // Last entry is today
+    }
+  })
   
+  // Calculate weekly average from actual completion data
   const weeklyAverage = Math.round(
-    weeklyCompletion.reduce((sum, d) => sum + d.value, 0) / 7
+    weeklyCompletion.reduce((sum, d) => sum + d.value, 0) / weeklyCompletion.length
   )
 
   // Stats boxes - dynamic values from habits data
