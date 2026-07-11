@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import { Check, Copy, QrCode, Smartphone } from 'lucide-react'
+import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import {
   Dialog,
@@ -48,12 +49,42 @@ export function PaymentModal({ open, onOpenChange, planName, amount }: PaymentMo
 
   const copyUpi = async () => {
     try {
-      await navigator.clipboard.writeText(UPI_ID)
+      // Try modern Clipboard API first
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(UPI_ID)
+      } else {
+        // Fallback for iframe environments: use document.execCommand
+        const textArea = document.createElement('textarea')
+        textArea.value = UPI_ID
+        textArea.style.position = 'fixed'
+        textArea.style.left = '-999999px'
+        textArea.style.top = '-999999px'
+        document.body.appendChild(textArea)
+        textArea.focus()
+        textArea.select()
+        const success = document.execCommand('copy')
+        document.body.removeChild(textArea)
+        
+        if (!success) {
+          throw new Error('Fallback copy failed')
+        }
+      }
+      
       setCopied(true)
+      toast.success('Copied to clipboard!', { duration: 1500 })
       setTimeout(() => setCopied(false), 1500)
-    } catch {
-      // clipboard not available — ignore
+    } catch (error) {
+      console.error('[v0] Copy failed:', error)
+      toast.error('Failed to copy')
     }
+  }
+
+  const handlePayWithUpi = () => {
+    toast.success('Opening UPI app...', { 
+      description: 'Please select a UPI app to complete the payment.',
+      duration: 2000 
+    })
+    // Safe fallback - just notify, don't navigate to upi:// scheme
   }
 
   return (
@@ -111,12 +142,12 @@ export function PaymentModal({ open, onOpenChange, planName, amount }: PaymentMo
                 {copied ? 'Copied' : 'Copy'}
               </button>
             </div>
-            <a
-              href={upiUri}
+            <button
+              onClick={handlePayWithUpi}
               className="w-full rounded-2xl bg-brand-gradient py-3.5 text-center text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/25 transition-transform active:scale-[0.99]"
             >
               Pay {amount} with UPI app
-            </a>
+            </button>
           </div>
         )}
 

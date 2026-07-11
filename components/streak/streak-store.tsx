@@ -15,6 +15,11 @@ type StreakContextType = {
   habits: Habit[]
   incrementHabit: (id: string) => void
   decrementHabit: (id: string) => void
+  toggleHabit: (id: string) => boolean
+  completedCount: number
+  totalCount: number
+  bestStreak: number
+  allComplete: boolean
 }
 
 const StreakContext = createContext<StreakContextType | undefined>(undefined)
@@ -35,32 +40,84 @@ export function StreakProvider({ children }: { children: ReactNode }) {
   const [habits, setHabits] = useState<Habit[]>(DEFAULT_HABITS)
   const [isLoaded, setIsLoaded] = useState(false)
 
-  // Auto Load & Midnight Auto-Reset Logic
+  // Get today's date in the user's local timezone
+  const getTodayString = () => {
+    const today = new Date()
+    return today.toLocaleDateString('en-CA') // YYYY-MM-DD format in local timezone
+  }
+
+  // Auto Load & Timezone-Aware Midnight Auto-Reset Logic
   useEffect(() => {
     const savedHabits = localStorage.getItem('streakbuddy_habits')
     const lastDate = localStorage.getItem('streakbuddy_last_date')
-    const today = new Date().toDateString() 
+    const today = getTodayString()
 
     let currentHabits = DEFAULT_HABITS
 
     // Load saved habits if they exist and match the current 8-task structure
     if (savedHabits) {
-      const parsed = JSON.parse(savedHabits)
-      // Check to ensure old 5-task data doesn't override new 8-task structure
-      if (parsed.length === 8) {
-        currentHabits = parsed
+      try {
+        const parsed = JSON.parse(savedHabits)
+        if (Array.isArray(parsed) && parsed.length === 8) {
+          currentHabits = parsed
+          console.log('[v0] Loaded habits from localStorage')
+        }
+      } catch (e) {
+        console.error('[v0] Failed to parse saved habits:', e)
       }
     }
 
-    // Checking if today is a new day (Midnight Reset)
+    // Checking if today is a new day (Midnight Reset using local timezone)
     if (lastDate !== today) {
       currentHabits = currentHabits.map(h => ({ ...h, current: 0 }))
       localStorage.setItem('streakbuddy_last_date', today)
+      console.log('[v0] Reset tasks for new day:', today)
     }
 
     setHabits(currentHabits)
     setIsLoaded(true)
   }, [])
+
+  // Schedule reset at midnight (local time)
+  useEffect(() => {
+    if (!isLoaded) return
+
+    const scheduleNextReset = () => {
+      const now = new Date()
+      const tomorrow = new Date(now)
+      tomorrow.setDate(tomorrow.getDate() + 1)
+      tomorrow.setHours(0, 0, 0, 0)
+
+      const msUntilMidnight = tomorrow.getTime() - now.getTime()
+
+      const timer = setTimeout(() => {
+        const today = getTodayString()
+        setHabits(prev => prev.map(h => ({ ...h, current: 0 })))
+        localStorage.setItem('streakbuddy_last_date', today)
+        scheduleNextReset() // Schedule the next midnight reset
+      }, msUntilMidnight)
+
+      return timer
+    }
+
+    const timer = scheduleNextReset()
+
+    // Also reset on tab focus (in case the tab was closed at midnight)
+    const handleFocus = () => {
+      const lastDate = localStorage.getItem('streakbuddy_last_date')
+      const today = getTodayString()
+      if (lastDate !== today) {
+        setHabits(prev => prev.map(h => ({ ...h, current: 0 })))
+        localStorage.setItem('streakbuddy_last_date', today)
+      }
+    }
+
+    window.addEventListener('focus', handleFocus)
+    return () => {
+      clearTimeout(timer)
+      window.removeEventListener('focus', handleFocus)
+    }
+  }, [isLoaded])
 
   // Auto-Sync Logic (Save on every click)
   useEffect(() => {
@@ -81,10 +138,35 @@ export function StreakProvider({ children }: { children: ReactNode }) {
     )
   }
 
+  const toggleHabit = (id: string): boolean => {
+    let becameComplete = false
+    setHabits((prev) =>
+      prev.map((h) => {
+        if (h.id === id) {
+          if (h.current < h.target) {
+            becameComplete = true
+            return { ...h, current: h.current + 1 }
+          } else {
+            return { ...h, current: Math.max(0, h.current - 1) }
+          }
+        }
+        return h
+      })
+    )
+    return becameComplete
+  }
+
+  const completedCount = habits.filter(h => h.current >= h.target).length
+  const totalCount = habits.length
+  const allComplete = completedCount === totalCount && totalCount > 0
+  
+  // Calculate best streak from habits data (default 0, not hardcoded)
+  const bestStreak = habits.reduce((max, h) => Math.max(max, h.current), 0)
+
   if (!isLoaded) return null
 
   return (
-    <StreakContext.Provider value={{ habits, incrementHabit, decrementHabit }}>
+    <StreakContext.Provider value={{ habits, incrementHabit, decrementHabit, toggleHabit, completedCount, totalCount, bestStreak, allComplete }}>
       {children}
     </StreakContext.Provider>
   )
