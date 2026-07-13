@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Flame, Mail, ArrowLeft } from 'lucide-react'
+import { supabase } from '@/lib/supabase/client'
 
 type AuthScreenProps = {
   onAuthenticated: () => void
@@ -9,12 +10,37 @@ type AuthScreenProps = {
 
 export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
   const [mode, setMode] = useState<'choices' | 'email'>('choices')
+  const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
-  const submitEmail = (e: React.FormEvent) => {
+  const submitEmail = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (email && password) onAuthenticated()
+    if (!email || !password) return
+
+    setIsSubmitting(true)
+    setErrorMessage(null)
+
+    if (authMode === 'signin') {
+      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      if (error) {
+        setErrorMessage(error.message)
+        setIsSubmitting(false)
+        return
+      }
+    } else {
+      const { error } = await supabase.auth.signUp({ email, password })
+      if (error) {
+        setErrorMessage(error.message)
+        setIsSubmitting(false)
+        return
+      }
+    }
+
+    onAuthenticated()
+    setIsSubmitting(false)
   }
 
   return (
@@ -64,6 +90,24 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
               <ArrowLeft className="size-4" />
               Back
             </button>
+
+            <div className="grid grid-cols-2 gap-2 rounded-2xl bg-secondary/70 p-1">
+              <button
+                type="button"
+                onClick={() => setAuthMode('signin')}
+                className={`rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${authMode === 'signin' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground'}`}
+              >
+                Sign in
+              </button>
+              <button
+                type="button"
+                onClick={() => setAuthMode('signup')}
+                className={`rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${authMode === 'signup' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground'}`}
+              >
+                Create account
+              </button>
+            </div>
+
             <div className="flex flex-col gap-1.5">
               <label htmlFor="email" className="px-1 text-xs font-medium text-muted-foreground">
                 Email
@@ -92,11 +136,13 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
                 className="rounded-2xl border border-border bg-card px-4 py-3 text-sm text-foreground shadow-sm outline-none transition-shadow focus:ring-2 focus:ring-ring"
               />
             </div>
+            {errorMessage && <p className="text-sm text-destructive">{errorMessage}</p>}
             <button
               type="submit"
-              className="mt-1 w-full rounded-2xl bg-brand-gradient py-3.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/25 transition-transform active:scale-[0.99]"
+              disabled={isSubmitting}
+              className="mt-1 w-full rounded-2xl bg-brand-gradient py-3.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/25 transition-transform active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
             >
-              Sign in
+              {isSubmitting ? 'Please wait...' : authMode === 'signin' ? 'Sign in' : 'Create account'}
             </button>
           </form>
         )}

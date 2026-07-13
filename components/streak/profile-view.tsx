@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from 'react'
 import { Bell, ChevronRight, Crown, HelpCircle, LogOut, Settings, Shield, Camera, X, Check, Sparkles } from 'lucide-react'
 import { useStreak } from './streak-store'
 import { PaymentModal } from './payment-modal'
+import { PremiumUpgradeModal } from './premium-upgrade-modal'
+import { supabase } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import type { TabId } from './bottom-nav'
 
@@ -47,7 +49,7 @@ const DEFAULT_NOTIFS = {
 const DEFAULT_IMAGE = "https://i.pravatar.cc/150?img=11"
 
 export function ProfileView({ onNavigate }: ProfileViewProps) {
-  const { habits } = useStreak()
+  const { habits, isPro, setIsPro, showUpgradeModal, openUpgradeModal, closeUpgradeModal } = useStreak()
   const activeHabitsCount = habits.length
 
   // Initialize state with localStorage values
@@ -152,6 +154,10 @@ export function ProfileView({ onNavigate }: ProfileViewProps) {
     { id: 'help', label: 'Help & support', icon: HelpCircle },
   ]
 
+  const handleSignOut = async () => {
+    await supabase.auth.signOut()
+  }
+
   return (
     <div className="flex flex-col gap-6 px-5 pb-28 pt-6 relative min-h-screen bg-background">
       <header className="pt-2">
@@ -197,20 +203,20 @@ export function ProfileView({ onNavigate }: ProfileViewProps) {
           </div>
           <div className="flex flex-1 flex-col items-center justify-center gap-1">
             <span className="text-xs text-muted-foreground">Plan</span>
-            <span className="font-bold text-primary">Free</span>
+            <span className="font-bold text-primary">{isPro ? 'Pro' : 'Free'}</span>
           </div>
         </div>
       </div>
 
       {/* Pro Banner */}
-      <button onClick={() => setPremiumOpen(true)} className="flex items-center justify-between rounded-2xl bg-gradient-to-r from-blue-500 to-purple-600 p-5 text-white shadow-lg shadow-purple-500/20 transition-transform active:scale-95">
+      <button onClick={() => (isPro ? setPremiumOpen(false) : setPremiumOpen(true))} className="flex items-center justify-between rounded-2xl bg-gradient-to-r from-blue-500 to-purple-600 p-5 text-white shadow-lg shadow-purple-500/20 transition-transform active:scale-95">
         <div className="flex items-center gap-4">
           <div className="flex size-10 items-center justify-center rounded-full bg-white/20">
             <Crown className="size-5" />
           </div>
           <div className="text-left">
-            <h3 className="font-bold">Go Pro</h3>
-            <p className="text-xs text-white/80">Unlock all premium features</p>
+            <h3 className="font-bold">{isPro ? 'Pro active' : 'Go Pro'}</h3>
+            <p className="text-xs text-white/80">{isPro ? 'You have premium access' : 'Unlock all premium features'}</p>
           </div>
         </div>
         <ChevronRight className="size-5 opacity-80" />
@@ -235,7 +241,10 @@ export function ProfileView({ onNavigate }: ProfileViewProps) {
         ))}
       </div>
 
-      <button className="flex w-full items-center justify-center gap-2 rounded-2xl border border-red-200 bg-red-50 py-4 font-bold text-red-600 transition-colors active:bg-red-100 dark:border-red-900/30 dark:bg-red-950/20 dark:text-red-400">
+      <button
+        onClick={handleSignOut}
+        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-red-200 bg-red-50 py-4 font-bold text-red-600 transition-colors active:bg-red-100 dark:border-red-900/30 dark:bg-red-950/20 dark:text-red-400"
+      >
         <LogOut className="size-5" />
         Log out
       </button>
@@ -439,6 +448,7 @@ export function ProfileView({ onNavigate }: ProfileViewProps) {
         planName={PLANS.find(p => p.id === selectedPlan)?.name || 'Pro'}
         amount={PLANS.find(p => p.id === selectedPlan)?.price || '$2.49'}
       />
+      <PremiumUpgradeModal open={showUpgradeModal} onOpenChange={closeUpgradeModal} isPro={isPro} onUnlock={() => setIsPro(true)} />
     </div>
   )
 }

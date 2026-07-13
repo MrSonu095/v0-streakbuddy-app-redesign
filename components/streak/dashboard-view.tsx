@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import confetti from 'canvas-confetti'
 import { useStreak } from './streak-store'
 import { CheckCircle2, Plus, Minus, Trophy } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -20,11 +21,23 @@ export function DashboardView() {
   }, [isAllDone])
 
   const handlePlus = (id: string, name: string, current: number, target: number) => {
-    incrementHabit(id)
-    // Sirf tab Popup aayega jab ek task pura 100% complete ho jayega
-    if (current + 1 === target) {
-      setToastMsg(`Congratulations! You completed "${name}"`)
-      setTimeout(() => setToastMsg(null), 3000)
+    const didComplete = incrementHabit(id)
+    if (didComplete) {
+      confetti({
+        particleCount: 120,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#8b5cf6', '#3b82f6', '#f59e0b', '#ec4899'],
+      })
+
+      if (current + 1 === target) {
+        setToastMsg(`Congratulations! You completed "${name}"`)
+        setTimeout(() => setToastMsg(null), 3000)
+      }
+
+      if (totalCurrent + 1 === totalTarget) {
+        setShowAllDone(true)
+      }
     }
   }
 

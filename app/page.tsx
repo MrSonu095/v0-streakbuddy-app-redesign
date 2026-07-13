@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { StreakProvider } from '@/components/streak/streak-store'
+import { supabase } from '@/lib/supabase/client'
 import { BottomNav, type TabId } from '@/components/streak/bottom-nav'
 import { DashboardView } from '@/components/streak/dashboard-view'
 import { StatsView } from '@/components/streak/stats-view'
@@ -16,19 +17,22 @@ export default function Page() {
 
   // Persist auth state across page reloads
   useEffect(() => {
-    const savedAuth = localStorage.getItem('streakbuddy_authed')
-    if (savedAuth === 'true') {
-      setAuthed(true)
+    const loadAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      setAuthed(Boolean(session?.user))
+      setIsLoaded(true)
     }
-    setIsLoaded(true)
-  }, [])
 
-  // Save auth state whenever it changes
-  useEffect(() => {
-    if (isLoaded) {
-      localStorage.setItem('streakbuddy_authed', authed ? 'true' : 'false')
+    loadAuth()
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setAuthed(Boolean(session?.user))
+    })
+
+    return () => {
+      listener.subscription.unsubscribe()
     }
-  }, [authed, isLoaded])
+  }, [])
 
   const handleAuthenticated = () => {
     setAuthed(true)
