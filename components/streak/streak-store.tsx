@@ -101,15 +101,14 @@ const calculateStreakMetrics = ({
   return { currentStreak, longestStreak }
 }
 
+// 🚀 AUTO-ONBOARDING: 6 Default Habits for new users
 const DEFAULT_HABITS: Habit[] = [
-  { id: '1', name: 'Drink 2L of water', description: 'Hydration goal', current: 0, target: 2, unit: 'L' },
-  { id: '2', name: 'Morning workout', description: 'Daily fitness', current: 0, target: 1, unit: 'Session' },
-  { id: '3', name: 'Meditate', description: 'Calm the mind', current: 0, target: 1, unit: 'Session' },
-  { id: '4', name: 'E-commerce Product Hunt', description: 'Find winning gadgets & fashion', current: 0, target: 3, unit: 'Items' },
-  { id: '5', name: 'Usability Test Check', description: 'Look for new studies', current: 0, target: 1, unit: 'Check' },
-  { id: '6', name: 'Telecalling Pitch Practice', description: 'Refine sales script', current: 0, target: 15, unit: 'Mins' },
-  { id: '7', name: 'Hospitality Job Prep', description: 'Front-office roles research', current: 0, target: 1, unit: 'Session' },
-  { id: '8', name: 'Free Fire Booyah!', description: 'Gaming & relaxation', current: 0, target: 1, unit: 'Match' },
+  { id: '1', name: 'Drink 2L of Water', description: 'Daily health goal', current: 0, target: 2, unit: 'L' },
+  { id: '2', name: 'Morning Meditation', description: 'Mental fitness', current: 0, target: 1, unit: 'Session' },
+  { id: '3', name: 'VibeNexus Store Check', description: 'Manage dropshipping orders', current: 0, target: 1, unit: 'Check' },
+  { id: '4', name: 'Telecalling Targets', description: 'Course sales and appointments', current: 0, target: 10, unit: 'Calls' },
+  { id: '5', name: 'QA Bug Testing', description: 'Find platform bugs', current: 0, target: 2, unit: 'Tests' },
+  { id: '6', name: 'Free Fire Matches', description: 'Gaming break', current: 0, target: 2, unit: 'Matches' },
 ]
 
 export function StreakProvider({ children }: { children: ReactNode }) {
@@ -177,6 +176,7 @@ export function StreakProvider({ children }: { children: ReactNode }) {
       let currentHistory: CompletionHistory[] = []
       let currentLastDate = today
 
+      // Auto-onboarding sync logic: Uses default if length mismatch
       if (data?.habits && Array.isArray(data.habits) && data.habits.length === DEFAULT_HABITS.length) {
         currentHabits = data.habits as Habit[]
       }
