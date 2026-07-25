@@ -1,386 +1,113 @@
-'use client'
-
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { create } from 'zustand'
 import { supabase } from '@/lib/supabase/client'
 
 export type Habit = {
   id: string
   name: string
-  description: string
   current: number
   target: number
   unit: string
+  user_id?: string
 }
 
-type CompletionHistory = {
-  date: string // YYYY-MM-DD
-  completedCount: number
-  totalCount: number
-}
-
-type StreakContextType = {
+interface StreakStore {
   habits: Habit[]
+  isPro: boolean
+  celebrationResetVersion: number
+  
+  // Database sync functions
+  fetchHabits: () => Promise<void>
   incrementHabit: (id: string) => boolean
   decrementHabit: (id: string) => void
-  toggleHabit: (id: string) => boolean
-  completedCount: number
-  totalCount: number
-  currentStreak: number
-  longestStreak: number
-  totalTasks: number
-  allComplete: boolean
-  weeklyHistory: CompletionHistory[]
-  isPro: boolean
-  setIsPro: (value: boolean) => void
-  openUpgradeModal: () => void
-  closeUpgradeModal: () => void
-  showUpgradeModal: boolean
+  addHabit: (habit: Omit<Habit, 'id' | 'user_id'>) => Promise<void>
+  updateHabit: (id: string, newName: string) => Promise<void>
+  deleteHabit: (id: string) => Promise<void>
 }
 
-const StreakContext = createContext<StreakContextType | undefined>(undefined)
+export const useStreak = create<StreakStore>((set, get) => ({
+  habits: [], 
+  isPro: true,
+  celebrationResetVersion: 0,
 
-const getDateString = (date: Date) => date.toLocaleDateString('en-CA')
+  fetchHabits: async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
 
-const calculateStreakMetrics = ({
-  history,
-  completedCount,
-  totalCount,
-  todayString,
-}: {
-  history: CompletionHistory[]
-  completedCount: number
-  totalCount: number
-  todayString: string
-}) => {
-  if (totalCount === 0) {
-    return { currentStreak: 0, longestStreak: 0 }
-  }
+    const { data, error } = await supabase
+      .from('habits')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('id', { ascending: true })
 
-  const completeDates = new Set<string>()
-  history.forEach((entry) => {
-    if (entry.totalCount > 0 && entry.completedCount === entry.totalCount) {
-      completeDates.add(entry.date)
+    // AUTO-ONBOARDING: Naye user ke liye funny default habits
+    if (data && data.length === 0) {
+      const defaultHabits = [
+        { user_id: user.id, name: '💧 Hydration Check (Paani Piya?)', current: 0, target: 8, unit: 'Glasses' },
+        { user_id: user.id, name: '🎮 Gaming Break (Free Fire)', current: 0, target: 2, unit: 'Matches' },
+        { user_id: user.id, name: '🤡 Share Dank Memes with Friends', current: 0, target: 3, unit: 'Memes' },
+        { user_id: user.id, name: '🌿 Touch Grass (Bahar Ghoom ke Aao)', current: 0, target: 1, unit: 'Walk' },
+        { user_id: user.id, name: '📱 Insta Reels Detox (Control Uday)', current: 0, target: 1, unit: 'Win' },
+        { user_id: user.id, name: '🧘‍♂️ 10 Mins of Shanti (Relax)', current: 0, target: 1, unit: 'Session' }
+      ]
+
+      const { data: insertedData } = await supabase.from('habits').insert(defaultHabits).select()
+      if (insertedData) {
+        set({ habits: insertedData })
+      }
+    } else if (data) {
+      set({ habits: data })
     }
-  })
+  },
 
-  if (completedCount === totalCount) {
-    completeDates.add(todayString)
-  }
-
-  let currentStreak = 0
-  let cursor = new Date()
-  while (true) {
-    const cursorString = getDateString(cursor)
-    const isComplete = cursorString === todayString
-      ? completedCount === totalCount && totalCount > 0
-      : completeDates.has(cursorString)
-
-    if (!isComplete) break
-    currentStreak += 1
-    cursor.setDate(cursor.getDate() - 1)
-  }
-
-  const sortedDates = Array.from(completeDates).sort((a, b) => a.localeCompare(b))
-  let longestStreak = 0
-  let runningStreak = 0
-  let previousDate: Date | null = null
-
-  sortedDates.forEach((dateString) => {
-    const currentDate = new Date(`${dateString}T12:00:00`)
-    if (!previousDate) {
-      runningStreak = 1
-    } else {
-      const diffDays = Math.round((currentDate.getTime() - previousDate.getTime()) / 86400000)
-      runningStreak = diffDays === 1 ? runningStreak + 1 : 1
-    }
-
-    longestStreak = Math.max(longestStreak, runningStreak)
-    previousDate = currentDate
-  })
-
-  return { currentStreak, longestStreak }
-}
-
-// 🚀 AUTO-ONBOARDING: 6 Default Habits for new users
-const DEFAULT_HABITS: Habit[] = [
-  { id: '1', name: 'Drink 2L of Water', description: 'Daily health goal', current: 0, target: 2, unit: 'L' },
-  { id: '2', name: 'Morning Meditation', description: 'Mental fitness', current: 0, target: 1, unit: 'Session' },
-  { id: '3', name: 'VibeNexus Store Check', description: 'Manage dropshipping orders', current: 0, target: 1, unit: 'Check' },
-  { id: '4', name: 'Telecalling Targets', description: 'Course sales and appointments', current: 0, target: 10, unit: 'Calls' },
-  { id: '5', name: 'QA Bug Testing', description: 'Find platform bugs', current: 0, target: 2, unit: 'Tests' },
-  { id: '6', name: 'Free Fire Matches', description: 'Gaming break', current: 0, target: 2, unit: 'Matches' },
-]
-
-export function StreakProvider({ children }: { children: ReactNode }) {
-  const [habits, setHabits] = useState<Habit[]>(DEFAULT_HABITS)
-  const [history, setHistory] = useState<CompletionHistory[]>([])
-  const [isLoaded, setIsLoaded] = useState(false)
-  const [lastDate, setLastDate] = useState<string | null>(null)
-  const [userId, setUserId] = useState<string | null>(null)
-  const [isPro, setIsPro] = useState(false)
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false)
-
-  const getTodayString = () => getDateString(new Date())
-
-  const getDayIndexInWeek = () => {
-    const today = new Date()
-    const day = today.getDay()
-    return day === 0 ? 6 : day - 1
-  }
-
-  const transitionToNewDay = (today: string) => {
-    if (lastDate === today) return
-
-    setHabits((prevHabits) => {
-      const completedYesterday = prevHabits.filter((habit) => habit.current >= habit.target).length
-      setHistory((prevHistory) => [
-        ...prevHistory,
-        {
-          date: lastDate || today,
-          completedCount: completedYesterday,
-          totalCount: prevHabits.length,
-        },
-      ])
-      return prevHabits.map((habit) => ({ ...habit, current: 0 }))
-    })
-
-    setLastDate(today)
-  }
-
-  useEffect(() => {
-    const loadProfile = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      const activeUserId = session?.user?.id ?? null
-      setUserId(activeUserId)
-
-      if (!activeUserId) {
-        setHabits(DEFAULT_HABITS)
-        setHistory([])
-        setLastDate(getTodayString())
-        setIsLoaded(true)
-        return
-      }
-
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('habits, history, last_date, is_pro')
-        .eq('user_id', activeUserId)
-        .maybeSingle()
-
-      if (error) {
-        console.error('[v0] Failed to load profile:', error)
-      }
-
-      const today = getTodayString()
-      let currentHabits = DEFAULT_HABITS
-      let currentHistory: CompletionHistory[] = []
-      let currentLastDate = today
-
-      // Auto-onboarding sync logic: Uses default if length mismatch
-      if (data?.habits && Array.isArray(data.habits) && data.habits.length === DEFAULT_HABITS.length) {
-        currentHabits = data.habits as Habit[]
-      }
-
-      if (Array.isArray(data?.history)) {
-        currentHistory = data.history as CompletionHistory[]
-      }
-
-      if (typeof data?.last_date === 'string') {
-        currentLastDate = data.last_date
-      }
-
-      if (typeof data?.is_pro === 'boolean') {
-        setIsPro(data.is_pro)
-      }
-
-      if (currentLastDate !== today) {
-        const completedYesterday = currentHabits.filter((habit) => habit.current >= habit.target).length
-        currentHistory = [
-          ...currentHistory,
-          {
-            date: currentLastDate || today,
-            completedCount: completedYesterday,
-            totalCount: currentHabits.length,
-          },
-        ]
-        currentHabits = currentHabits.map((habit) => ({ ...habit, current: 0 }))
-        currentLastDate = today
-      }
-
-      setHabits(currentHabits)
-      setHistory(currentHistory)
-      setLastDate(currentLastDate)
-      setIsLoaded(true)
-    }
-
-    loadProfile()
-  }, [])
-
-  useEffect(() => {
-    if (!isLoaded) return
-
-    const scheduleNextReset = () => {
-      const now = new Date()
-      const tomorrow = new Date(now)
-      tomorrow.setDate(tomorrow.getDate() + 1)
-      tomorrow.setHours(0, 0, 0, 0)
-
-      const msUntilMidnight = tomorrow.getTime() - now.getTime()
-
-      const timer = window.setTimeout(() => {
-        const today = getTodayString()
-        if (lastDate !== today) {
-          transitionToNewDay(today)
-        }
-        scheduleNextReset()
-      }, msUntilMidnight)
-
-      return timer
-    }
-
-    const timer = scheduleNextReset()
-
-    const handleFocus = () => {
-      const today = getTodayString()
-      if (lastDate !== today) {
-        transitionToNewDay(today)
-      }
-    }
-
-    window.addEventListener('focus', handleFocus)
-    return () => {
-      window.clearTimeout(timer)
-      window.removeEventListener('focus', handleFocus)
-    }
-  }, [isLoaded, lastDate])
-
-  useEffect(() => {
-    if (!isLoaded || !userId) return
-
-    const persist = async () => {
-      const { error } = await supabase.from('profiles').upsert(
-        {
-          user_id: userId,
-          habits,
-          history,
-          last_date: lastDate,
-          is_pro: isPro,
-        },
-        { onConflict: 'user_id' },
-      )
-
-      if (error) {
-        console.error('[v0] Failed to sync to Supabase:', error)
-      }
-    }
-
-    persist()
-  }, [habits, history, lastDate, isLoaded, userId])
-
-  const incrementHabit = (id: string): boolean => {
+  incrementHabit: (id) => {
     let didComplete = false
-    setHabits((prev) =>
-      prev.map((habit) => {
-        if (habit.id === id && habit.current < habit.target) {
-          const nextCurrent = habit.current + 1
-          didComplete = nextCurrent >= habit.target
-          return { ...habit, current: nextCurrent }
-        }
-        return habit
-      }),
-    )
+    const habit = get().habits.find((h) => h.id === id)
+    
+    if (habit && habit.current < habit.target) {
+      const newCurrent = habit.current + 1
+      if (newCurrent === habit.target) didComplete = true
+      
+      set((state) => ({
+        habits: state.habits.map((h) => h.id === id ? { ...h, current: newCurrent } : h)
+      }))
+      supabase.from('habits').update({ current: newCurrent }).eq('id', id).then()
+    }
     return didComplete
-  }
+  },
 
-  const decrementHabit = (id: string) => {
-    setHabits((prev) =>
-      prev.map((habit) => (habit.id === id && habit.current > 0 ? { ...habit, current: habit.current - 1 } : habit)),
-    )
-  }
-
-  const toggleHabit = (id: string): boolean => {
-    let becameComplete = false
-    setHabits((prev) =>
-      prev.map((habit) => {
-        if (habit.id === id) {
-          if (habit.current < habit.target) {
-            becameComplete = true
-            return { ...habit, current: habit.current + 1 }
-          }
-          return { ...habit, current: Math.max(0, habit.current - 1) }
-        }
-        return habit
-      }),
-    )
-    return becameComplete
-  }
-
-  const completedCount = habits.filter((habit) => habit.current >= habit.target).length
-  const totalCount = habits.length
-  const allComplete = completedCount === totalCount && totalCount > 0
-  const todayString = getTodayString()
-  const { currentStreak, longestStreak } = calculateStreakMetrics({
-    history,
-    completedCount,
-    totalCount,
-    todayString,
-  })
-  const totalTasks = totalCount
-
-  const calculateWeeklyAverage = (): number => {
-    const last7Days: number[] = []
-
-    if (totalCount > 0) {
-      last7Days.push((completedCount / totalCount) * 100)
+  decrementHabit: (id) => {
+    const habit = get().habits.find((h) => h.id === id)
+    if (habit && habit.current > 0) {
+      const newCurrent = habit.current - 1
+      set((state) => ({
+        habits: state.habits.map((h) => h.id === id ? { ...h, current: newCurrent } : h)
+      }))
+      supabase.from('habits').update({ current: newCurrent }).eq('id', id).then()
     }
+  },
 
-    for (let i = 0; i < 6 && history.length > i; i++) {
-      const entry = history[history.length - 1 - i]
-      const percent = entry.totalCount > 0 ? (entry.completedCount / entry.totalCount) * 100 : 0
-      last7Days.push(percent)
+  addHabit: async (newHabit) => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    const habitToInsert = { ...newHabit, user_id: user.id }
+    const { data, error } = await supabase.from('habits').insert([habitToInsert]).select().single()
+    if (data) {
+      set((state) => ({ habits: [...state.habits, data] }))
     }
+  },
 
-    while (last7Days.length < 7) {
-      last7Days.push(0)
-    }
+  updateHabit: async (id, newName) => {
+    set((state) => ({
+      habits: state.habits.map((h) => h.id === id ? { ...h, name: newName } : h)
+    }))
+    await supabase.from('habits').update({ name: newName }).eq('id', id)
+  },
 
-    const average = last7Days.reduce((sum, value) => sum + value, 0) / 7
-    return Math.round(average)
+  deleteHabit: async (id) => {
+    set((state) => ({
+      habits: state.habits.filter((h) => h.id !== id)
+    }))
+    await supabase.from('habits').delete().eq('id', id)
   }
-
-  const weeklyHistory = (() => {
-    const today = new Date()
-    const currentDayIndex = getDayIndexInWeek()
-    const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-    const entriesByDate = new Map(history.map((entry) => [entry.date, entry]))
-
-    return dayLabels.map((_, index) => {
-      const date = new Date(today)
-      date.setDate(today.getDate() - (currentDayIndex - index))
-      const dateString = getDateString(date)
-      const entry = dateString === todayString
-        ? { completedCount, totalCount }
-        : entriesByDate.get(dateString)
-
-      return {
-        date: dateString,
-        completedCount: entry?.completedCount ?? 0,
-        totalCount: entry?.totalCount ?? totalCount,
-      }
-    })
-  })()
-
-  if (!isLoaded) return null
-
-  return (
-    <StreakContext.Provider value={{ habits, incrementHabit, decrementHabit, toggleHabit, completedCount, totalCount, currentStreak, longestStreak, totalTasks, allComplete, weeklyHistory, isPro, setIsPro, openUpgradeModal: () => setShowUpgradeModal(true), closeUpgradeModal: () => setShowUpgradeModal(false), showUpgradeModal }}>
-      {children}
-    </StreakContext.Provider>
-  )
-}
-
-export const useStreak = () => {
-  const context = useContext(StreakContext)
-  if (!context) throw new Error('useStreak must be used within StreakProvider')
-  return context
-}
+}))
