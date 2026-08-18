@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { Toaster } from '@/components/ui/sonner'
+import AnimatedBackground from '@/components/AnimatedBackground'
+import { ClerkProvider } from '@clerk/nextjs' // <-- Clerk import
 import './globals.css'
 
 const inter = Inter({
@@ -48,12 +50,16 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} bg-background`}>
-      <body className="min-h-screen bg-background font-sans antialiased">
-        {children}
-        <Toaster position="top-center" />
-        {process.env.NODE_ENV === 'production' && <Analytics />}
-      </body>
-    </html>
+    // <-- Wrap your app with ClerkProvider
+    <ClerkProvider> 
+      <html lang="en" className={`${inter.variable} bg-background`}>
+        <body className="relative min-h-screen bg-background font-sans antialiased">
+          <AnimatedBackground isPro={false} /> {/* TODO: Sync with actual user subscription status */}
+          {children}
+          <Toaster position="top-center" />
+          {process.env.NODE_ENV === 'production' && <Analytics />}
+        </body>
+      </html>
+    </ClerkProvider>
   )
 }

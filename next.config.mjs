@@ -1,11 +1,14 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  images: {
-    unoptimized: true,
-  },
-}
+  experimental: {
+    serverActions: {
+      allowedOrigins: [
+        'localhost:3000',
+        '*.github.dev',
+        'literate-tribble-qv9qvvxp6r9q34j5p-3000.app.github.dev'
+      ]
+    }
+  }
+};
 
-export default nextConfig
+export default nextConfig;

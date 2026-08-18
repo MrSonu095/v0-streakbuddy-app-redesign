@@ -1,0 +1,33 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// User Model: Ye Clerk ke data aur user ka XP/Level store karega
+model User {
+  id        String   @id // Clerk ka user ID yahan aayega
+  email     String   @unique
+  level     Int      @default(1)
+  xp        Int      @default(0)
+  createdAt DateTime @default(now())
+  
+  habits    Habit[]  // Ek user ki multiple habits hongi
+}
+
+// Habit Model: Ye har habit ka naam aur streak track karega
+model Habit {
+  id            String    @id @default(cuid())
+  userId        String
+  title         String
+  streak        Int       @default(0)
+  isCompleted   Boolean   @default(false)
+  lastCompleted DateTime? 
+  createdAt     DateTime  @default(now())
+  
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}

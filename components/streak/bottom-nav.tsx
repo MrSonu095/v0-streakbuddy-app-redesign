@@ -1,4 +1,4 @@
-'use client'
+  'use client'
 
 import { Home, BarChart3, Store, User } from 'lucide-react'
 import { cn } from '@/lib/utils'
