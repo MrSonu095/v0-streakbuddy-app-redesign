@@ -2,9 +2,40 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-// YAHAN HUMNE DATABASE ACTIONS IMPORT KIYE HAIN
-import { addHabitToDB, deleteHabitFromDB, toggleHabitInDB, getUserHabitsFromDB } from "./habit-actions";
 import { playTapSound } from "./sound-engine";
+
+async function requestHabits<T>(url: string, options?: RequestInit): Promise<T> {
+  const response = await fetch(url, options);
+  const body = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new Error(body?.error || `Habit request failed (${response.status})`);
+  }
+  return body as T;
+}
+
+async function addHabitToDB(text: string) {
+  return requestHabits<{ id: string; title: string; isCompleted: boolean; streak: number }>("/api/habits", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ title: text }),
+  });
+}
+
+async function getUserHabitsFromDB() {
+  return requestHabits<Array<{ id: string; title: string; isCompleted: boolean; streak: number }>>("/api/habits");
+}
+
+async function deleteHabitFromDB(id: string) {
+  await requestHabits<null>(`/api/habits/${id}`, { method: "DELETE" });
+}
+
+async function toggleHabitInDB(id: string, currentDone: boolean) {
+  return requestHabits(`/api/habits/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ isCompleted: !currentDone }),
+  });
+}
 
 export interface Habit {
   id: string;
@@ -135,6 +166,7 @@ interface StreakState {
 
   setProfile: (name: string, goal: string) => void;
   fetchHabitsFromDB: () => Promise<void>; // Naya function database se load karne ke liye
+  addLocalHabit: (text: string) => void;
   addHabit: (text: string) => Promise<void>;
   deleteHabit: (id: string) => Promise<void>;
   editHabit: (id: string, text: string) => void;
@@ -162,6 +194,17 @@ export const useStreakStore = create<StreakState>()(
       hasHydrated: false,
 
       setProfile: (name, goal) => set({ userName: name, userGoal: goal }),
+
+      addLocalHabit: (text) => {
+        const trimmedText = text.trim();
+        if (!trimmedText) return;
+        set((state) => ({
+          habits: [
+            ...state.habits,
+            { id: `local-${makeToastId()}`, text: trimmedText, done: false, streak: 0 },
+          ],
+        }));
+      },
 
       // DATABASE SYNC: Load habits on login
       fetchHabitsFromDB: async () => {
@@ -215,6 +258,7 @@ export const useStreakStore = create<StreakState>()(
           }));
         } catch (error) {
           console.error("Database add error:", error);
+          throw error;
         }
       },
 

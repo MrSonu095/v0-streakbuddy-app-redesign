@@ -17,7 +17,6 @@ export const metadata: Metadata = {
   description:
     'StreakBuddy helps you build lasting habits with daily streaks, clean stats, and friendly motivation.',
   generator: 'v0.app',
-  manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',

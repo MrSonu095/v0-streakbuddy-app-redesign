@@ -12,7 +12,7 @@ const freeGlowVariants = {
     scale: [1, 1.03, 1],
     transition: {
       duration: 10,
-      ease: "easeInOut",
+      ease: "easeInOut" as const,
       repeat: Infinity,
     },
   },
@@ -25,7 +25,7 @@ const premiumWaveVariants = {
     rotate: [0, 5, 0],
     transition: {
       duration: 12,
-      ease: "easeInOut",
+      ease: "easeInOut" as const,
       repeat: Infinity,
     },
   },

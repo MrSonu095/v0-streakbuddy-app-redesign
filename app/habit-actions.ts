@@ -8,6 +8,13 @@ export async function addHabitToDB(text: string) {
   const { userId } = await auth();
   if (!userId) throw new Error("User logged in nahi hai");
 
+  // Naya Code: Database ko batao ki agar user nahi hai, toh pehle usko register kare!
+  await prisma.user.upsert({
+    where: { id: userId },
+    update: {},
+    create: { id: userId },
+  });
+
   const newHabit = await prisma.habit.create({
     data: {
       userId: userId,

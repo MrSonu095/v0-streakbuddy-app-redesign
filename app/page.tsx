@@ -2,7 +2,7 @@
 
 import { useRef, useState, useEffect } from "react";
 import { motion, AnimatePresence, Reorder } from "framer-motion";
-import { SignInButton, Show, UserButton } from "@clerk/nextjs";
+import { SignInButton, Show, UserButton, useAuth } from "@clerk/nextjs";
 import {
   Flame, Plus, Pencil, Trash2, Check, Crown, Hand,
   Settings, Home as HomeIcon, BarChart3, User, Sparkles, Trophy, Target, TrendingUp, GripVertical
@@ -15,9 +15,6 @@ import SettingsPopup from "./SettingsPopup";
 import { playSound } from "./sound-engine";
 import { useAudio } from "../hooks/useAudio";
 import { toast } from "sonner"; // <-- ADDED: Toast import for limits
-
-// DATABASE SYNC FUNCTION IMPORT 
-import { syncUserToDatabase } from "@/lib/sync-user";
 
 const INK = "#18181B";
 const MUTED = "#9CA3AF";
@@ -223,8 +220,9 @@ export default function StreakBuddyPage() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const { toggleBGM, playTapSound } = useAudio();
+  const { isLoaded: authLoaded, isSignedIn } = useAuth();
 
-  const { habits, addHabit, deleteHabit, editHabit, toggleHabit, reorderHabits, activeTheme, userName, setProfile, hasHydrated, fetchHabitsFromDB } = useStreakStore();
+  const { habits, addLocalHabit, addHabit, deleteHabit, editHabit, toggleHabit, reorderHabits, activeTheme, userName, setProfile, hasHydrated, fetchHabitsFromDB } = useStreakStore();
   const theme = activeTheme;
   const accent = getSolidFromTheme(theme);
 
@@ -232,25 +230,40 @@ export default function StreakBuddyPage() {
 
   // DATABASE SYNC CALL: Ye har baar page load pe user ko database mein check karega
   useEffect(() => {
+    if (!authLoaded || !isSignedIn) return;
+
     const syncAccount = async () => {
       try {
-        await syncUserToDatabase();
+        const response = await fetch("/api/users/sync", { method: "POST" });
+        if (!response.ok) throw new Error(`User sync failed (${response.status})`);
       } catch (error) {
         console.error("User sync fail ho gaya:", error);
       }
     };
     syncAccount();
-  }, []);
+  }, [authLoaded, isSignedIn]);
 
   // Load habits from the server once on initial mount
   useEffect(() => {
+    if (!authLoaded || !isSignedIn) return;
+
     fetchHabitsFromDB().catch((err) => console.error("Failed to fetch habits on mount:", err));
-  }, []);
+  }, [authLoaded, isSignedIn, fetchHabitsFromDB]);
 
   const handleStart = () => { if (!tempName.trim()) return; setProfile(tempName, tempGoal); setEntered(true); };
   
   // <-- ADDED: Updated handleAdd function with Freemium Logic
-  const handleAdd = () => { 
+  const handleAdd = async () => { 
+    console.log("Your streaks add action", { habit: newText });
+    if (!isSignedIn) {
+      addLocalHabit(newText);
+      setNewText("");
+      inputRef.current?.focus();
+      toast.info("Habit added locally", {
+        description: "Sign in to save it to your account database.",
+      });
+      return;
+    }
     const isPro = false; // TODO: Sync with actual user subscription
     if (!isPro && habits.length >= 3) {
       toast.error("🔒 Free limit reached!", {
@@ -259,9 +272,15 @@ export default function StreakBuddyPage() {
       return; 
     }
     if (!newText.trim()) return; 
-    addHabit(newText); 
-    setNewText(""); 
-    inputRef.current?.focus(); 
+    try {
+      await addHabit(newText);
+      setNewText("");
+      inputRef.current?.focus();
+    } catch {
+      toast.error("Could not save habit", {
+        description: "Please check your sign-in and try again.",
+      });
+    }
   };
 
   const tabs = [
@@ -337,8 +356,8 @@ export default function StreakBuddyPage() {
                 </motion.button>
               </div>
 
-              <div className="mb-4 flex gap-2">
-                <input ref={inputRef} value={newText} onChange={(e) => setNewText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleAdd()} placeholder="Add a new habit..." className="flex-1 rounded-[14px] border-2 px-3.5 py-2.5 text-sm" style={{ borderColor: BORDER }} />
+              <div className="mb-4 flex gap-2" style={{ borderColor: BORDER }}>
+                <input ref={inputRef} value={newText} onChange={(e) => { setNewText(e.target.value); console.log("Your streaks field changed", { habit: e.target.value }); }} onKeyDown={(e) => e.key === "Enter" && handleAdd()} placeholder="Add a new habit..." className="flex-1 rounded-[14px] border-2 px-3.5 py-2.5 text-sm" style={{ borderColor: BORDER }} />
                 <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.9 }} onClick={handleAdd} aria-label="Add habit" className="flex w-[42px] items-center justify-center rounded-[14px] text-white" style={{ background: theme }}><Plus size={20} /></motion.button>
               </div>
 
