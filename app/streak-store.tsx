@@ -4,6 +4,15 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { playTapSound } from "./sound-engine";
 
+export const DEFAULT_ONBOARDING_TASKS = [
+  "Drink 2 Liters of Water 💧",
+  "Play 3 matches of Free Fire 🎮",
+  "Do 15 mins of Exercise / Yoga 🧘‍♂️",
+  "Learn something new for 20 mins 🧠",
+  "Listen to your favorite music & relax 🎧",
+  "Get 8 hours of sleep 😴",
+];
+
 async function requestHabits<T>(url: string, options?: RequestInit): Promise<T> {
   const response = await fetch(url, options);
   const body = await response.json().catch(() => null);
@@ -222,16 +231,8 @@ export const useStreakStore = create<StreakState>()(
             return;
           }
 
-          const defaultOnboardingTasks = [
-            "Drink 2 Liters of Water 💧",
-            "Play 3 matches of Free Fire 🎮",
-            "Do 15 mins of Exercise / Yoga 🧘‍♂️",
-            "Learn something new for 20 mins 🧠",
-            "Listen to your favorite music & relax 🎧",
-          ];
-
           const createdHabits: Habit[] = [];
-          for (const task of defaultOnboardingTasks) {
+          for (const task of DEFAULT_ONBOARDING_TASKS) {
             const newDbHabit = await addHabitToDB(task);
             createdHabits.push({
               id: newDbHabit.id,

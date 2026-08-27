@@ -7,7 +7,7 @@ import {
   Flame, Plus, Pencil, Trash2, Check, Crown, Hand,
   Settings, Home as HomeIcon, BarChart3, User, Sparkles, Trophy, Target, TrendingUp, GripVertical
 } from "lucide-react";
-import { useStreakStore, type Habit, type Reward, xpForNextLevel, DEFAULT_TITLE, getSolidFromTheme } from "./streak-store";
+import { useStreakStore, type Habit, type Reward, xpForNextLevel, DEFAULT_TITLE, DEFAULT_ONBOARDING_TASKS, getSolidFromTheme } from "./streak-store";
 import VipPopup from "./VipPopup";
 import LevelUpPopup from "./LevelUpPopup";
 import XpToast from "./XpToast";
@@ -249,6 +249,11 @@ export default function StreakBuddyPage() {
 
     fetchHabitsFromDB().catch((err) => console.error("Failed to fetch habits on mount:", err));
   }, [authLoaded, isSignedIn, fetchHabitsFromDB]);
+
+  useEffect(() => {
+    if (!authLoaded || isSignedIn || habits.length > 0) return;
+    for (const task of DEFAULT_ONBOARDING_TASKS) addLocalHabit(task);
+  }, [authLoaded, isSignedIn, habits.length, addLocalHabit]);
 
   const handleStart = () => { if (!tempName.trim()) return; setProfile(tempName, tempGoal); setEntered(true); };
   
